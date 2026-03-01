@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#09090b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Bozorov Turg'un | Premium Barbershop</title>
+    <style>
+        /* --- CORE VARIABLES & RESET --- */
+        :root {
+            --bg-base: #09090b;
+            --surface: rgba(24, 24, 27, 0.6);
+            --surface-border: rgba(255, 255, 255, 0.08);
+            --primary: #fbbf24;
+            --primary-glow: rgba(251, 191, 36, 0.15);
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --success: #10b981;
+            --error: #ef4444;
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            overflow: hidden; /* Scrollni yopib, faqat App ichida ishlaymiz */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* --- INTRO OVERLAY (YANGI QO'SHILGAN QISM) --- */
+        .intro-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: transform 1.2s cubic-bezier(0.77, 0, 0.175, 1), opacity 1s ease;
+        }
+        .intro-overlay.hidden {
+            transform: translateY(-100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .intro-name {
+            font-size: clamp(2rem, 8vw, 4rem);
+            font-weight: 800;
+            letter-spacing: 5px;
+            color: transparent;
+            -webkit-text-stroke: 1px rgba(251, 191, 36, 0.3);
+            text-transform: uppercase;
+            text-align: center;
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            filter: blur(15px);
+            transition: all 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+            position: absolute;
+        }
+        .intro-name.active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            filter: blur(0);
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            -webkit-text-stroke: 0px;
+            text-shadow: 0 0 40px rgba(251, 191, 36, 0.4);
+        }
+
+        /* --- CANVAS BACKGROUND --- */
+        #particleCanvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* --- APP CONTAINER --- */
+        .app-layout {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 428px; /* iPhone Pro Max width */
+            height: 100%;
+            max-height: 926px;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle at top right, rgba(39, 39, 42, 0.5), transparent 50%),
+                        radial-gradient(circle at bottom left, rgba(251, 191, 36, 0.05), transparent 50%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        @media (min-width: 429px) {
+            .app-layout {
+                height: 90vh;
+                border-radius: 40px;
+                border: 1px solid var(--surface-border);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+                overflow: hidden;
+            }
+        }
+
+        /* --- CONTENT WRAPPER --- */
+        .content-scroll {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 40px 24px 100px 24px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .content-scroll::-webkit-scrollbar { display: none; }
+
+        /* --- HEADER & STATUS --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            animation: fadeDown 1s var(--ease-out-expo) forwards;
+        }
+        .header-title h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            background: linear-gradient(180deg, #fff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header-title p {
+            color: var(--primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-indicator {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+            box-shadow: 0 0 10px var(--error);
+            transition: all 0.3s ease;
+        }
+        .status-badge.is-open .status-indicator {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        /* --- 3D TILT CARDS --- */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 20px;
+            transform-style: preserve-3d;
+            transform: perspective(1000px);
+            transition: transform 0.1s;
+            opacity: 0;
+            animation: fadeUp 1s var(--ease-out-expo) 0.2s forwards;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+            transform: skewX(-20deg);
+            animation: shine 6s infinite;
+        }
+        .card-inner {
+            transform: translateZ(30px); /* 3D effect uchib chiqishi */
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .icon-box {
+            width: 48px; height: 48px;
+            border-radius: 16px;
+            background: rgba(251, 191, 36, 0.1);
+            color: var(--primary);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.5rem;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        .card-title { font-size: 1.2rem; font-weight: 700; }
+        .card-desc { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; }
+        .price-tag {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* --- REVIEW SECTION --- */
+        .review {
+            margin-top: 30px;
+            padding-left: 20px;
+            border-left: 2px solid var(--primary);
+            opacity: 0;
+            animation: fadeUp 1s var(--ease-out-expo) 0.4s forwards;
+        }
+        .review-text { font-style: italic; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; }
+        .review-author { display: block; margin-top: 10px; font-weight: 700; color: #fff; font-size: 0.9rem; }
+
+        /* --- BOTTOM ACTION BAR --- */
+        .action-bar {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%;
+            padding: 20px 24px 30px 24px;
+            background: linear-gradient(180deg, transparent, var(--bg-base) 40%);
+            z-index: 10;
+        }
+        .btn-main {
+            width: 100%;
+            padding: 18px;
+            border-radius: 20px;
+            background: var(--primary);
+            color: #000;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+            box-shadow: 0 10px 30px var(--primary-glow);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .btn-main:active { transform: scale(0.95); }
+        .btn-main svg { width: 22px; height: 22px; }
+
+        /* --- BOTTOM SHEET (MODAL) --- */
+        .sheet-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s var(--ease-out-expo);
+        }
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%;
+            background: #18181b;
+            border-radius: 30px 30px 0 0;
+            padding: 30px 24px 40px 24px;
+            z-index: 101;
+            transform: translateY(100%);
+            transition: transform 0.5s var(--ease-out-expo);
+            border-top: 1px solid var(--surface-border);
+        }
+        .sheet-overlay.active { opacity: 1; visibility: visible; }
+        .sheet-overlay.active .bottom-sheet { transform: translateY(0); }
+        
+        .sheet-handler {
+            width: 40px; height: 4px;
+            background: var(--surface-border);
+            border-radius: 4px;
+            margin: 0 auto 24px auto;
+        }
+        .contact-btn {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            padding: 18px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--surface-border);
+            border-radius: 16px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            transition: background 0.2s;
+        }
+        .contact-btn:active { background: rgba(255,255,255,0.08); }
+        .contact-btn.tg { color: #3b82f6; border-color: rgba(59, 130, 246, 0.3); }
+        .contact-btn.call { color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
+
+        /* --- KEYFRAMES --- */
+        @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shine { 0% { left: -100%; } 20% { left: 200%; } 100% { left: 200%; } }
+    </style>
+</head>
+<body>
+
+    <div class="intro-overlay" id="introOverlay">
+        <h1 class="intro-name" id="introName">Turg'un Bozorov</h1>
+    </div>
+
+    <canvas id="particleCanvas"></canvas>
+
+    <main class="app-layout">
+        
+        <div class="content-scroll">
+            <header class="header">
+                <div class="header-title">
+                    <p>Yotoqxona Soch olish Xizmati</p>
+                    <h1>Turg'un Bozorov</h1>
+                </div>
+                <div class="status-badge" id="workStatus">
+                    <div class="status-indicator"></div>
+                    <span id="statusText">Tekshirilmoqda...</span>
+                </div>
+            </header>
+
+            <section class="card js-tilt">
+                <div class="card-inner">
+                    <div class="card-header">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </div>
+                        <h2 class="card-title">Lokatsiya</h2>
+                    </div>
+                    <p class="card-desc">Uzoqqa borishga hojat yo'q. Yotoqxonaning <strong>427-xonasida</strong> xizmatingizdamiz.</p>
+                </div>
+            </section>
+
+            <section class="card js-tilt">
+                <div class="card-inner">
+                    <div class="card-header">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </div>
+                        <h2 class="card-title">Xizmat turi</h2>
+                    </div>
+                    <p class="card-desc">Faqat soch olish xizmati. Zamonaviy stiling va yuz tuzilishiga mos individual yondashuv.</p>
+                    <div class="price-tag">Narxi: Kelishilgan holda</div>
+                </div>
+            </section>
+
+            
+        </div>
+
+        <div class="action-bar">
+            <button class="btn-main" id="openSheetBtn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                Aloqaga chiqish
+            </button>
+        </div>
+
+        <div class="sheet-overlay" id="bottomSheet">
+            <div class="bottom-sheet" id="sheetContent">
+                <div class="sheet-handler"></div>
+                <h3 style="margin-bottom: 20px; text-align: center;">Bog'lanish turini tanlang</h3>
+                
+                <a href="tel:+998937960803" class="contact-btn call">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                    Qo'ng'iroq qilish
+                </a>
+                
+                <a href="https://t.me/T_Bozorov_2003" target="_blank" class="contact-btn tg">
+                    <svg fill="currentColor" viewBox="0 0 24 24" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.19-.08-.05-.19-.02-.27 0-.12.03-1.96 1.25-5.54 3.67-.52.36-.99.54-1.41.53-.46-.01-1.35-.26-2.01-.48-.81-.27-1.46-.42-1.4-.88.03-.24.33-.5.91-.78 3.56-1.55 5.94-2.58 7.13-3.08 3.39-1.42 4.09-1.67 4.55-1.68.1 0 .33.02.45.1.11.08.14.19.16.27-.01.06-.01.13-.02.21z"/></svg>
+                    Telegram orqali yozish
+                </a>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /**
+         * @module IntroManager (YANGI QO'SHILGAN QISM - Avtomatik ishlaydi)
+         * Web Audio API orqali matematik kinematografik ovoz yaratish.
+         */
+        class CinematicAudio {
+            static playBoom() {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    const ctx = new AudioContext();
+                    
+                    const osc = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    const filter = ctx.createBiquadFilter();
+
+                    // Deep Bass Frequency Sweep (Kino effekti)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(150, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(0.01, ctx.currentTime + 3);
+
+                    // Lowpass Filter
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(2000, ctx.currentTime);
+                    filter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 2);
+
+                    // Fade in & out (Ovozning silliq pasayishi)
+                    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 3);
+
+                    osc.connect(filter);
+                    filter.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+
+                    // Mobil qurilmalarda avtomatik ovozni bloklashni aylanib o'tish uchun kichik urinish
+                    if (ctx.state === 'suspended') {
+                        ctx.resume();
+                    }
+
+                    osc.start();
+                    osc.stop(ctx.currentTime + 3);
+                } catch (e) {
+                    console.log("Audio API qo'llab-quvvatlanmaydi.");
+                }
+            }
+        }
+
+        class IntroEngine {
+            static init() {
+                const introName = document.getElementById('introName');
+                const introOverlay = document.getElementById('introOverlay');
+
+                // Sayt yuklanishi bilan animatsiya boshlanadi
+                window.addEventListener('load', () => {
+                    // Ovoz effektini chalishga urinish
+                    CinematicAudio.playBoom();
+
+                    // 1. Ismni kinematografik silliqlikda chiqarish
+                    setTimeout(() => {
+                        introName.classList.add('active');
+                    }, 400);
+
+                    // 2. Ekranni tepaga surib ochish (Asosiy dasturga o'tish)
+                    setTimeout(() => {
+                        introOverlay.classList.add('hidden');
+                        
+                        // O'chirilgandan so'ng xotirani tozalash
+                        setTimeout(() => introOverlay.remove(), 1500);
+                    }, 3000); // 3 soniyadan keyin ochiladi
+                });
+            }
+        }
+        
+        // Kirish mexanizmini ishga tushirish
+        IntroEngine.init();
+
+
+        /**
+         * @module BarbershopApp (ESKI KOD O'ZGARMASDAN QOLDI)
+         * Obyektga yo'naltirilgan, xavfsiz va modulli JavaScript.
+         */
+        const AppConfig = {
+            workHours: { start: 9, end: 22 }, // Ish vaqti: 09:00 dan 22:00 gacha
+            tiltSettings: { max: 10, speed: 400, perspective: 1000 }
+        };
+
+        class SystemCore {
+            static init() {
+                this.initStatusManager();
+                this.initBottomSheet();
+                this.init3DTilt();
+                this.initParticleEngine();
+            }
+
+            // 1. Ish vaqtiga qarab statusni hisoblash
+            static initStatusManager() {
+                const statusBadge = document.getElementById('workStatus');
+                const statusText = document.getElementById('statusText');
+                const currentHour = new Date().getHours();
+                
+                const isOpen = currentHour >= AppConfig.workHours.start && currentHour < AppConfig.workHours.end;
+                
+                if (isOpen) {
+                    statusBadge.classList.add('is-open');
+                    statusText.textContent = "Hozir ochiq";
+                } else {
+                    statusBadge.classList.remove('is-open');
+                    statusText.textContent = "Hozir yopiq";
+                }
+            }
+
+            // 2. Bottom Sheet (Pastki menyu) logikasi
+            static initBottomSheet() {
+                const sheetOverlay = document.getElementById('bottomSheet');
+                const openBtn = document.getElementById('openSheetBtn');
+                const sheetContent = document.getElementById('sheetContent');
+
+                const openSheet = () => sheetOverlay.classList.add('active');
+                const closeSheet = (e) => {
+                    // Faqat tashqi qorong'u fon bosilganda yopish
+                    if (e.target === sheetOverlay) {
+                        sheetOverlay.classList.remove('active');
+                    }
+                };
+
+                openBtn.addEventListener('click', openSheet);
+                sheetOverlay.addEventListener('click', closeSheet);
+                
+                // Swipe down qilib yopishni simulyatsiya qilish (mobil uchun)
+                let startY;
+                sheetContent.addEventListener('touchstart', e => startY = e.touches[0].clientY, {passive: true});
+                sheetContent.addEventListener('touchmove', e => {
+                    const currentY = e.touches[0].clientY;
+                    if (currentY - startY > 50) sheetOverlay.classList.remove('active'); // 50px pastga tortilsa yopiladi
+                }, {passive: true});
+            }
+
+            // 3. 3D Tilt Animatsiyasi (Kardlarni qimirlatish)
+            static init3DTilt() {
+                const cards = document.querySelectorAll('.js-tilt');
+                
+                cards.forEach(card => {
+                    card.addEventListener('mousemove', (e) => {
+                        const rect = card.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+                        
+                        const centerX = rect.width / 2;
+                        const centerY = rect.height / 2;
+                        
+                        const rotateX = ((y - centerY) / centerY) * -AppConfig.tiltSettings.max;
+                        const rotateY = ((x - centerX) / centerX) * AppConfig.tiltSettings.max;
+                        
+                        card.style.transform = `perspective(${AppConfig.tiltSettings.perspective}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+                    });
+
+                    card.addEventListener('mouseleave', () => {
+                        card.style.transform = `perspective(${AppConfig.tiltSettings.perspective}px) rotateX(0) rotateY(0) scale3d(1, 1, 1)`;
+                        card.style.transition = `transform ${AppConfig.tiltSettings.speed}ms var(--ease-out-expo)`;
+                    });
+
+                    card.addEventListener('mouseenter', () => {
+                        card.style.transition = 'none'; // Kirganda darhol javob berishi uchun
+                    });
+                });
+            }
+
+            // 4. HTML5 Canvas orqali Particle (Zarralar) tizimi
+            static initParticleEngine() {
+                const canvas = document.getElementById('particleCanvas');
+                const ctx = canvas.getContext('2d');
+                let width, height;
+                let particles = [];
+
+                const resize = () => {
+                    width = canvas.width = window.innerWidth;
+                    height = canvas.height = window.innerHeight;
+                };
+
+                window.addEventListener('resize', resize);
+                resize();
+
+                class Particle {
+                    constructor() {
+                        this.x = Math.random() * width;
+                        this.y = Math.random() * height;
+                        this.size = Math.random() * 2;
+                        this.speedY = Math.random() * 0.5 + 0.1;
+                        this.opacity = Math.random() * 0.5 + 0.1;
+                    }
+                    update() {
+                        this.y -= this.speedY;
+                        if (this.y < 0) {
+                            this.y = height;
+                            this.x = Math.random() * width;
+                        }
+                    }
+                    draw() {
+                        ctx.fillStyle = `rgba(251, 191, 36, ${this.opacity})`;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // Ekranga qarab zarralar sonini belgilash
+                const particleCount = window.innerWidth < 768 ? 30 : 60;
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push(new Particle());
+                }
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, width, height);
+                    particles.forEach(p => {
+                        p.update();
+                        p.draw();
+                    });
+                    requestAnimationFrame(animate);
+                };
+
+                animate();
+            }
+        }
+
+        // DOM tayyor bo'lgach dasturni ishga tushirish
+        document.addEventListener('DOMContentLoaded', () => SystemCore.init());
+    </script>
+</body>
+</html>
